@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>LED图纸解析器 - 云端图纸库 | 分组高亮系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: #000000;
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            color: #e0e0e0;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* 左侧面板 */
+        .sidebar {
+            width: 300px;
+            background: #0a0c12;
+            border-right: 1px solid #22262f;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        /* 图纸库区域 */
+        .library-section {
+            border-bottom: 1px solid #1e222c;
+            padding: 16px 0 12px 0;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            color: #6c7a9e;
+            padding: 0 16px 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .add-xml-btn {
+            background: #1f2a44;
+            border: none;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            color: #e0e0e0;
+            transition: 0.2s;
+        }
+
+        .add-xml-btn:hover {
+            background: #2f3b5a;
+        }
+
+        .drawings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .drawing-item {
+            background: #11141e;
+            border: 1px solid #252b3a;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: #cfdef5;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .drawing-item:hover {
+            background: #1b212f;
+            border-color: #3b4b6e;
+            transform: translateX(3px);
+        }
+
+        .drawing-item.active {
+            background: #1e2a3e;
+            border-left: 3px solid #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+            font-weight: 600;
+        }
+
+        .drawing-name {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .delete-drawing {
+            background: rgba(255, 80, 80, 0.2);
+            border: none;
+            color: #ff8888;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+            transition: 0.2s;
+        }
+
+        .delete-drawing:hover {
+            background: rgba(255, 80, 80, 0.4);
+            color: #ffaaaa;
+        }
+
+        .groups-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 16px 0 20px 0;
+        }
+
+        .groups-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 12px 12px 12px;
+        }
+
+        .group-tag {
+            background: #12161f;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+            border: 1px solid #252c3c;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .group-tag:hover {
+            background: #1e2538;
+            border-color: #3b82f6;
+        }
+
+        .group-tag.active-group {
+            background: #1e3a5f;
+            border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 0 6px rgba(59,130,246,0.4);
+        }
+
+        .group-name {
+            font-family: monospace;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .group-count {
+            font-size: 0.7rem;
+            background: #1e2538;
+            padding: 2px 8px;
+            border-radius: 30px;
+            color: #9aa9c7;
+        }
+
+        .action-buttons {
+            margin: 12px 12px 0 12px;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .action-btn {
+            background: #1f2538;
+            border: none;
+            border-radius: 40px;
+            padding: 8px;
+            color: #eef3ff;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .action-btn:hover {
+            background: #2f3b5a;
+            transform: translateY(-1px);
+        }
+
+        .action-btn.primary {
+            background: #2c3e66;
+            border: 1px solid #3b82f6;
+        }
+
+        .action-btn.primary:hover {
+            background: #3b5a8c;
+        }
+
+        /* 右侧主视图 */
+        .main-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #000000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .toolbar {
+            background: #080b10e0;
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #1e232e;
+            z-index: 10;
+        }
+
+        .pixel-size-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #0f131c;
+            padding: 6px 16px;
+            border-radius: 60px;
+        }
+
+        .pixel-size-control label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #a0accf;
+        }
+
+        .size-control-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .size-btn {
+            background: #2a2f41;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .size-btn:hover {
+            background: #3b82f6;
+            transform: scale(1.05);
+        }
+
+        input#pixelSizeSlider {
+            width: 160px;
+            cursor: pointer;
+            background: #2a2f41;
+            height: 4px;
+            border-radius: 5px;
+        }
+
+        .pixel-size-value {
+            min-width: 80px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: #00000066;
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .current-info {
+            font-size: 0.75rem;
+            background: #11161f;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-family: monospace;
+        }
+
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000000;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 0 1px #2a2f3e, 0 8px 20px rgba(0,0,0,0.6);
+            background-color: #000000;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0e16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2c334b;
+            border-radius: 8px;
+        }
+
+        .empty-state {
+            color: #6c7a9e;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="sidebar">
+        <div class="library-section">
+            <div class="section-title">
+                <span>📚 图纸库 (IndexedDB)</span>
+                <button class="add-xml-btn" id="addXmlBtn">+ 添加XML</button>
+            </div>
+            <div class="drawings-list" id="drawingsList">
+                <div class="empty-state">暂无图纸，点击上方按钮添加XML文件</div>
+            </div>
+        </div>
+        <div class="groups-section">
+            <div class="section-title">🎨 颜色分组 (点击单独亮白)</div>
+            <div class="groups-list" id="groupsList">
+                <div class="empty-state">请先选择图纸</div>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn primary" id="lightAllGroupsBtn">✨ 点亮所有分组</button>
+                <button class="action-btn" id="resetGroupsBtn">🔘 全部熄灭 (仅显示网格)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-view">
+        <div class="toolbar">
+            <div class="pixel-size-control">
+                <span>🔲 格子像素大小</span>
+                <div class="size-control-wrapper">
+                    <button class="size-btn" id="decreaseSizeBtn">-</button>
+                    <input type="range" id="pixelSizeSlider" min="4" max="32" step="1" value="12">
+                    <button class="size-btn" id="increaseSizeBtn">+</button>
+                </div>
+                <span class="pixel-size-value" id="pixelSizeValue">12 x 12 px</span>
+            </div>
+            <div class="current-info" id="statsInfo">📐 未加载图纸</div>
+        </div>
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="ledCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- 全局变量 ----------
+        let allDrawings = [];           // 存储解析后的图纸对象
+        let currentDrawingIndex = -1;
+        let currentActiveGroup = null;  // null=全部熄灭, 'ALL_GROUPS'=点亮所有分组, 其他=具体分组名
+        let currentPixelGrid = null;
+        
+        let canvas = document.getElementById('ledCanvas');
+        let ctx = canvas.getContext('2d');
+        let pixelSizeSlider = document.getElementById('pixelSizeSlider');
+        let pixelSizeValueSpan = document.getElementById('pixelSizeValue');
+        let decreaseBtn = document.getElementById('decreaseSizeBtn');
+        let increaseBtn = document.getElementById('increaseSizeBtn');
+        
+        let currentPixelSize = 12;
+        let gridCols = 52;
+        let gridRows = 52;
+        
+        const ALL_GROUPS_MODE = 'ALL_GROUPS';
+        const DB_NAME = 'LED_DrawingsDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'drawings';
+        let db = null;
+        
+        // 辅助函数
+        function coordKey(x, y) { return `${x},${y}`; }
+        
+        // 解析XML，提取所有图纸数据
+        function parseDrawingsFromXml(xmlText, fileName) {
+            const regex = /<string name="flutter\.52_52_1_color_source_key_v1">(.*?)<\/string>/s;
+            const match = xmlText.match(regex);
+            if (!match || !match[1]) {
+                console.warn("未找到图纸JSON字段");
+                return [];
+            }
+            let jsonStr = match[1];
+            jsonStr = jsonStr.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+            try {
+                const sourcesObj = JSON.parse(jsonStr);
+                const drawingsArray = [];
+                for (const [id, sourceData] of Object.entries(sourcesObj)) {
+                    if (!sourceData.pixData || typeof sourceData.pixData !== 'object') continue;
+                    const groupsMap = new Map();
+                    const pixData = sourceData.pixData;
+                    let width = 52, height = 52;
+                    if (sourceData.screenSize && Array.isArray(sourceData.screenSize)) {
+                        width = sourceData.screenSize[0] || 52;
+                        height = sourceData.screenSize[1] || 52;
+                    }
+                    for (const [groupName, coordsArray] of Object.entries(pixData)) {
+                        if (!Array.isArray(coordsArray)) continue;
+                        const coordSet = new Set();
+                        for (const coord of coordsArray) {
+                            if (Array.isArray(coord) && coord.length >= 2) {
+                                let x = Number(coord[0]);
+                                let y = Number(coord[1]);
+                                if (!isNaN(x) && !isNaN(y) && x >= 0 && y >= 0 && x < width && y < height) {
+                                    coordSet.add(coordKey(x, y));
+                                }
+                            }
+                        }
+                        if (coordSet.size > 0) {
+                            groupsMap.set(groupName, coordSet);
+                        }
+                    }
+                    let drawingName = sourceData.name && sourceData.name.trim() !== "" ? sourceData.name : `图纸_${id.slice(-8)}`;
+                    drawingsArray.push({
+                        id: id,
+                        name: drawingName,
+                        sourceFile: fileName,
+                        groups: groupsMap,
+                        width: width,
+                        height: height,
+                        resolution: `${width}x${height}`,
+                        uploadTime: Date.now()
+                    });
+                }
+                return drawingsArray;
+            } catch(e) {
+                console.error("JSON解析失败", e);
+                return [];
+            }
+        }
+        
+        // 初始化IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+            });
+        }
+        
+        // 保存图纸到数据库
+        async function saveDrawingToDB(drawing) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.add(drawing);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        // 加载所有图纸
+        async function loadAllDrawings() {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    allDrawings = request.result || [];
+                    resolve(allDrawings);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        // 删除图纸
+        async function deleteDrawing(id) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        // 构建像素归属网格
+        function buildPixelGroupsMap(drawing) {
+            if (!drawing) return null;
+            const w = drawing.width, h = drawing.height;
+            const pixelGroups = Array(h).fill().map(() => Array(w).fill().map(() => new Set()));
+            for (const [groupName, coordSet] of drawing.groups.entries()) {
+                for (const coordKeyStr of coordSet) {
+                    const [x, y] = coordKeyStr.split(',').map(Number);
+                    if (x >= 0 && x < w && y >= 0 && y < h) {
+                        pixelGroups[y][x].add(groupName);
+                    }
+                }
+            }
+            return pixelGroups;
+        }
+        
+        // 绘制网格线（支持5格一组和10格一组）
+        function drawGridLines(canvasWidth, canvasHeight, pixelSize, cols, rows) {
+            if (!ctx) return;
+            ctx.save();
+            
+            // 绘制所有竖线
+            for (let i = 0; i <= cols; i++) {
+                const x = i * pixelSize;
+                const isThickLine10 = (i % 10 === 0);
+                const isThickLine5 = (i % 5 === 0 && i % 10 !== 0);
+                
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvasHeight);
+                
+                if (isThickLine10) {
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#a0a0a0';
+                } else if (isThickLine5) {
+                    ctx.lineWidth = 1.2;
+                    ctx.strokeStyle = '#606060';
+                } else {
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeStyle = '#404040';
+                }
+                ctx.stroke();
+            }
+            
+            // 绘制所有横线
+            for (let i = 0; i <= rows; i++) {
+                const y = i * pixelSize;
+                const isThickLine10 = (i % 10 === 0);
+                const isThickLine5 = (i % 5 === 0 && i % 10 !== 0);
+                
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvasWidth, y);
+                
+                if (isThickLine10) {
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#a0a0a0';
+                } else if (isThickLine5) {
+                    ctx.lineWidth = 1.2;
+                    ctx.strokeStyle = '#606060';
+                } else {
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeStyle = '#404040';
+                }
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+        }
+        
+        // 核心渲染函数
+        function renderCanvas() {
+            if (!currentPixelGrid || !ctx) return;
+            const drawing = allDrawings[currentDrawingIndex];
+            if (!drawing) return;
+            
+            const cols = drawing.width;
+            const rows = drawing.height;
+            const pixelSize = currentPixelSize;
+            
+            const canvasWidth = cols * pixelSize;
+            const canvasHeight = rows * pixelSize;
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // 绘制每个格子
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const groupsAtPixel = currentPixelGrid[row][col];
+                    let shouldLight = false;
+                    
+                    if (currentActiveGroup === ALL_GROUPS_MODE) {
+                        shouldLight = groupsAtPixel.size > 0;
+                    } else if (currentActiveGroup !== null && currentActiveGroup !== 'NONE') {
+                        shouldLight = groupsAtPixel.has(currentActiveGroup);
+                    }
+                    
+                    if (shouldLight) {
+                        const x = col * pixelSize;
+                        const y = row * pixelSize;
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(x, y, pixelSize, pixelSize);
+                    }
+                }
+            }
+            
+            drawGridLines(canvasWidth, canvasHeight, pixelSize, cols, rows);
+            
+            // 更新统计信息
+            const totalPixels = cols * rows;
+            let litCount = 0;
+            
+            if (currentActiveGroup === ALL_GROUPS_MODE) {
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        if (currentPixelGrid[row][col].size > 0) litCount++;
+                    }
+                }
+                document.getElementById('statsInfo').innerHTML = `✨ 所有分组点亮 | 发光格子: ${litCount} / ${totalPixels} | 格子: ${pixelSize}px`;
+            } else if (currentActiveGroup !== null && currentActiveGroup !== 'NONE') {
+                const groupSet = drawing.groups.get(currentActiveGroup);
+                if (groupSet) litCount = groupSet.size;
+                document.getElementById('statsInfo').innerHTML = `💡 分组: ${currentActiveGroup} | 格子数: ${litCount} / ${totalPixels} | 格子: ${pixelSize}px`;
+            } else {
+                document.getElementById('statsInfo').innerHTML = `⚫ 全部熄灭 | 总格子: ${totalPixels} | 格子: ${pixelSize}px`;
+            }
+        }
+        
+        // 刷新分组侧边栏
+        function updateGroupsSidebar() {
+            const groupsContainer = document.getElementById('groupsList');
+            if (currentDrawingIndex === -1 || !allDrawings[currentDrawingIndex]) {
+                groupsContainer.innerHTML = '<div class="empty-state">请先选择图纸</div>';
+                return;
+            }
+            const drawing = allDrawings[currentDrawingIndex];
+            const groupsMap = drawing.groups;
+            if (!groupsMap || groupsMap.size === 0) {
+                groupsContainer.innerHTML = '<div class="empty-state">该图纸无分组数据</div>';
+                return;
+            }
+            const sortedGroups = Array.from(groupsMap.keys()).sort();
+            groupsContainer.innerHTML = '';
+            for (const groupName of sortedGroups) {
+                const pixelCount = groupsMap.get(groupName).size;
+                const div = document.createElement('div');
+                div.className = 'group-tag';
+                if (currentActiveGroup === groupName) {
+                    div.classList.add('active-group');
+                }
+                div.innerHTML = `<span class="group-name">${groupName}</span><span class="group-count">${pixelCount} 格</span>`;
+                div.addEventListener('click', () => {
+                    if (currentActiveGroup === groupName) return;
+                    currentActiveGroup = groupName;
+                    document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
+                    div.classList.add('active-group');
+                    renderCanvas();
+                });
+                groupsContainer.appendChild(div);
+            }
+        }
+        
+        // 更新图纸列表UI
+        function updateDrawingsListUI() {
+            const container = document.getElementById('drawingsList');
+            if (allDrawings.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无图纸，点击上方按钮添加XML文件</div>';
+                return;
+            }
+            container.innerHTML = '';
+            allDrawings.forEach((draw, idx) => {
+                const div = document.createElement('div');
+                div.className = 'drawing-item';
+                if (idx === currentDrawingIndex) div.classList.add('active');
+                div.innerHTML = `
+                    <span class="drawing-name">${draw.name} (${draw.resolution})</span>
+                    <button class="delete-drawing" data-id="${draw.id}">🗑️</button>
+                `;
+                div.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('delete-drawing')) return;
+                    switchToDrawing(idx);
+                });
+                const deleteBtn = div.querySelector('.delete-drawing');
+                deleteBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`确定删除图纸 "${draw.name}" 吗？`)) {
+                        await deleteDrawing(draw.id);
+                        await refreshDrawingsList();
+                        if (allDrawings.length === 0) {
+                            currentDrawingIndex = -1;
+                            currentPixelGrid = null;
+                            currentActiveGroup = null;
+                            renderCanvas();
+                            updateGroupsSidebar();
+                        } else if (currentDrawingIndex === idx) {
+                            switchToDrawing(0);
+                        } else if (currentDrawingIndex > idx) {
+                            currentDrawingIndex--;
+                            switchToDrawing(currentDrawingIndex);
+                        }
+                    }
+                });
+                container.appendChild(div);
+            });
+        }
+        
+        // 切换到指定图纸
+        function switchToDrawing(index) {
+            if (index < 0 || index >= allDrawings.length) return;
+            currentDrawingIndex = index;
+            const drawing = allDrawings[currentDrawingIndex];
+            currentPixelGrid = buildPixelGroupsMap(drawing);
+            currentActiveGroup = null;
+            updateDrawingsListUI();
+            updateGroupsSidebar();
+            renderCanvas();
+        }
+        
+        // 刷新图纸列表
+        async function refreshDrawingsList() {
+            await loadAllDrawings();
+            updateDrawingsListUI();
+            if (currentDrawingIndex >= allDrawings.length) {
+                currentDrawingIndex = allDrawings.length - 1;
+            }
+            if (currentDrawingIndex >= 0 && allDrawings[currentDrawingIndex]) {
+                currentPixelGrid = buildPixelGroupsMap(allDrawings[currentDrawingIndex]);
+                updateGroupsSidebar();
+                renderCanvas();
+            }
+        }
+        
+        // 添加XML文件
+        async function addXmlFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xml';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    const content = ev.target.result;
+                    const drawings = parseDrawingsFromXml(content, file.name);
+                    if (drawings.length === 0) {
+                        alert("未解析到任何图纸数据，请确保XML包含正确的图纸字段");
+                        return;
+                    }
+                    
+                    for (const drawing of drawings) {
+                        await saveDrawingToDB(drawing);
+                    }
+                    await refreshDrawingsList();
+                    if (allDrawings.length > 0 && currentDrawingIndex === -1) {
+                        switchToDrawing(0);
+                    }
+                    alert(`成功添加 ${drawings.length} 个图纸！`);
+                };
+                reader.readAsText(file, 'utf-8');
+            };
+            input.click();
+        }
+        
+        // 点亮所有分组
+        function lightAllGroups() {
+            if (currentDrawingIndex === -1) return;
+            currentActiveGroup = ALL_GROUPS_MODE;
+            document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
+            renderCanvas();
+        }
+        
+        // 全部熄灭
+        function resetAllGroups() {
+            if (currentDrawingIndex === -1) return;
+            currentActiveGroup = null;
+            document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
+            renderCanvas();
+        }
+        
+        // 初始化像素大小控制
+        function initPixelSizeControl() {
+            const updatePixelSize = () => {
+                currentPixelSize = parseInt(pixelSizeSlider.value);
+                pixelSizeValueSpan.innerText = `${currentPixelSize} x ${currentPixelSize} px`;
+                if (currentDrawingIndex !== -1) renderCanvas();
+            };
+            pixelSizeSlider.addEventListener('input', updatePixelSize);
+            
+            decreaseBtn.addEventListener('click', () => {
+                let newVal = currentPixelSize - 1;
+                if (newVal >= 4) {
+                    pixelSizeSlider.value = newVal;
+                    updatePixelSize();
+                }
+            });
+            
+            increaseBtn.addEventListener('click', () => {
+                let newVal = currentPixelSize + 1;
+                if (newVal <= 32) {
+                    pixelSizeSlider.value = newVal;
+                    updatePixelSize();
+                }
+            });
+            
+            updatePixelSize();
+        }
+        
+        // 初始化应用
+        async function initApp() {
+            await initDB();
+            await refreshDrawingsList();
+            initPixelSizeControl();
+            
+            document.getElementById('addXmlBtn').addEventListener('click', addXmlFile);
+            document.getElementById('lightAllGroupsBtn').addEventListener('click', lightAllGroups);
+            document.getElementById('resetGroupsBtn').addEventListener('click', resetAllGroups);
+        }
+        
+        initApp();
+    })();
+</script>
+</body>
+</html>
