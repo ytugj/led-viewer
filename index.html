@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>LED图纸解析器 - 云端图纸库 | 分组高亮系统</title>
+    <title>LED图纸解析器 - 云端图纸库</title>
     <style>
         * {
             margin: 0;
@@ -27,9 +27,8 @@
             overflow: hidden;
         }
 
-        /* 左侧面板 */
         .sidebar {
-            width: 300px;
+            width: 320px;
             background: #0a0c12;
             border-right: 1px solid #22262f;
             display: flex;
@@ -38,8 +37,8 @@
             flex-shrink: 0;
         }
 
-        /* 图纸库区域 */
-        .library-section {
+        /* 仓库文件区域 */
+        .repo-section {
             border-bottom: 1px solid #1e222c;
             padding: 16px 0 12px 0;
         }
@@ -56,7 +55,7 @@
             align-items: center;
         }
 
-        .add-xml-btn {
+        .refresh-btn {
             background: #1f2a44;
             border: none;
             border-radius: 20px;
@@ -67,11 +66,11 @@
             transition: 0.2s;
         }
 
-        .add-xml-btn:hover {
+        .refresh-btn:hover {
             background: #2f3b5a;
         }
 
-        .drawings-list {
+        .xml-list {
             display: flex;
             flex-direction: column;
             gap: 6px;
@@ -80,7 +79,7 @@
             overflow-y: auto;
         }
 
-        .drawing-item {
+        .xml-item {
             background: #11141e;
             border: 1px solid #252b3a;
             border-radius: 12px;
@@ -95,40 +94,54 @@
             align-items: center;
         }
 
-        .drawing-item:hover {
+        .xml-item:hover {
             background: #1b212f;
             border-color: #3b4b6e;
             transform: translateX(3px);
         }
 
-        .drawing-item.active {
+        .xml-item.active {
             background: #1e2a3e;
             border-left: 3px solid #3b82f6;
             border-color: #3b82f6;
             color: white;
-            font-weight: 600;
         }
 
-        .drawing-name {
+        .xml-name {
             flex: 1;
             word-break: break-word;
+            font-family: monospace;
+            font-size: 0.8rem;
         }
 
-        .delete-drawing {
-            background: rgba(255, 80, 80, 0.2);
+        .loading-badge {
+            font-size: 0.65rem;
+            background: #2d3348;
+            padding: 2px 6px;
+            border-radius: 12px;
+        }
+
+        /* 本地添加区域 */
+        .local-section {
+            border-bottom: 1px solid #1e222c;
+            padding: 16px 0 12px 0;
+        }
+
+        .add-xml-btn {
+            background: #1f2a44;
             border: none;
-            color: #ff8888;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 0.75rem;
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-size: 0.7rem;
-            margin-left: 8px;
+            color: #e0e0e0;
+            margin: 0 12px;
+            width: calc(100% - 24px);
             transition: 0.2s;
         }
 
-        .delete-drawing:hover {
-            background: rgba(255, 80, 80, 0.4);
-            color: #ffaaaa;
+        .add-xml-btn:hover {
+            background: #2f3b5a;
         }
 
         .groups-section {
@@ -177,7 +190,6 @@
         .group-name {
             font-family: monospace;
             font-weight: 600;
-            letter-spacing: 0.3px;
         }
 
         .group-count {
@@ -210,7 +222,6 @@
 
         .action-btn:hover {
             background: #2f3b5a;
-            transform: translateY(-1px);
         }
 
         .action-btn.primary {
@@ -222,14 +233,12 @@
             background: #3b5a8c;
         }
 
-        /* 右侧主视图 */
         .main-view {
             flex: 1;
             display: flex;
             flex-direction: column;
             background: #000000;
             overflow: hidden;
-            position: relative;
         }
 
         .toolbar {
@@ -241,7 +250,6 @@
             gap: 24px;
             flex-wrap: wrap;
             border-bottom: 1px solid #1e232e;
-            z-index: 10;
         }
 
         .pixel-size-control {
@@ -251,12 +259,6 @@
             background: #0f131c;
             padding: 6px 16px;
             border-radius: 60px;
-        }
-
-        .pixel-size-control label {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #a0accf;
         }
 
         .size-control-wrapper {
@@ -276,22 +278,15 @@
             font-size: 1.2rem;
             font-weight: bold;
             transition: 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         .size-btn:hover {
             background: #3b82f6;
-            transform: scale(1.05);
         }
 
         input#pixelSizeSlider {
             width: 160px;
             cursor: pointer;
-            background: #2a2f41;
-            height: 4px;
-            border-radius: 5px;
         }
 
         .pixel-size-value {
@@ -319,15 +314,21 @@
             justify-content: center;
             align-items: center;
             background: #000000;
-            position: relative;
         }
 
         canvas {
             display: block;
-            box-shadow: 0 0 0 1px #2a2f3e, 0 8px 20px rgba(0,0,0,0.6);
+            box-shadow: 0 0 0 1px #2a2f3e;
             background-color: #000000;
             image-rendering: crisp-edges;
             image-rendering: pixelated;
+        }
+
+        .empty-state {
+            color: #6c7a9e;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.85rem;
         }
 
         ::-webkit-scrollbar {
@@ -341,35 +342,35 @@
             background: #2c334b;
             border-radius: 8px;
         }
-
-        .empty-state {
-            color: #6c7a9e;
-            text-align: center;
-            padding: 20px;
-            font-size: 0.85rem;
-        }
     </style>
 </head>
 <body>
 <div class="app-container">
     <div class="sidebar">
-        <div class="library-section">
+        <!-- 仓库XML文件列表 -->
+        <div class="repo-section">
             <div class="section-title">
-                <span>📚 图纸库 (IndexedDB)</span>
-                <button class="add-xml-btn" id="addXmlBtn">+ 添加XML</button>
+                <span>📁 仓库中的XML文件</span>
+                <button class="refresh-btn" id="refreshRepoBtn">🔄 刷新</button>
             </div>
-            <div class="drawings-list" id="drawingsList">
-                <div class="empty-state">暂无图纸，点击上方按钮添加XML文件</div>
+            <div class="xml-list" id="xmlList">
+                <div class="empty-state">点击刷新加载仓库中的XML文件</div>
             </div>
         </div>
+
+        <!-- 本地上传（可选） -->
+        <div class="local-section">
+            <button class="add-xml-btn" id="addLocalXmlBtn">📂 + 上传本地XML文件</button>
+        </div>
+
         <div class="groups-section">
             <div class="section-title">🎨 颜色分组 (点击单独亮白)</div>
             <div class="groups-list" id="groupsList">
-                <div class="empty-state">请先选择图纸</div>
+                <div class="empty-state">请先选择XML文件</div>
             </div>
             <div class="action-buttons">
                 <button class="action-btn primary" id="lightAllGroupsBtn">✨ 点亮所有分组</button>
-                <button class="action-btn" id="resetGroupsBtn">🔘 全部熄灭 (仅显示网格)</button>
+                <button class="action-btn" id="resetGroupsBtn">🔘 全部熄灭</button>
             </div>
         </div>
     </div>
@@ -377,7 +378,7 @@
     <div class="main-view">
         <div class="toolbar">
             <div class="pixel-size-control">
-                <span>🔲 格子像素大小</span>
+                <span>🔲 格子大小</span>
                 <div class="size-control-wrapper">
                     <button class="size-btn" id="decreaseSizeBtn">-</button>
                     <input type="range" id="pixelSizeSlider" min="4" max="32" step="1" value="12">
@@ -387,479 +388,404 @@
             </div>
             <div class="current-info" id="statsInfo">📐 未加载图纸</div>
         </div>
-        <div class="canvas-container" id="canvasContainer">
+        <div class="canvas-container">
             <canvas id="ledCanvas"></canvas>
         </div>
     </div>
 </div>
 
 <script>
-    (function(){
-        // ---------- 全局变量 ----------
-        let allDrawings = [];           // 存储解析后的图纸对象
-        let currentDrawingIndex = -1;
-        let currentActiveGroup = null;  // null=全部熄灭, 'ALL_GROUPS'=点亮所有分组, 其他=具体分组名
-        let currentPixelGrid = null;
+    // GitHub仓库配置 - 请修改为您的仓库信息
+    const GITHUB_USERNAME = 'ytugj';      // 替换为您的GitHub用户名
+    const GITHUB_REPO = 'led-viewer';          // 替换为您的仓库名
+    const GITHUB_BRANCH = 'main';              // 分支名，通常是main或master
+    
+    // 全局变量
+    let currentXmlFiles = [];
+    let currentDrawing = null;
+    let currentPixelGrid = null;
+    let currentActiveGroup = null;
+    let currentPixelSize = 12;
+    
+    let canvas = document.getElementById('ledCanvas');
+    let ctx = canvas.getContext('2d');
+    let pixelSizeSlider = document.getElementById('pixelSizeSlider');
+    let pixelSizeValueSpan = document.getElementById('pixelSizeValue');
+    
+    const ALL_GROUPS_MODE = 'ALL_GROUPS';
+    
+    // 辅助函数
+    function coordKey(x, y) { return `${x},${y}`; }
+    
+    // 从GitHub获取XML文件列表
+    async function fetchXmlFileList() {
+        const xmlListDiv = document.getElementById('xmlList');
+        xmlListDiv.innerHTML = '<div class="empty-state">⏳ 加载中...</div>';
         
-        let canvas = document.getElementById('ledCanvas');
-        let ctx = canvas.getContext('2d');
-        let pixelSizeSlider = document.getElementById('pixelSizeSlider');
-        let pixelSizeValueSpan = document.getElementById('pixelSizeValue');
-        let decreaseBtn = document.getElementById('decreaseSizeBtn');
-        let increaseBtn = document.getElementById('increaseSizeBtn');
-        
-        let currentPixelSize = 12;
-        let gridCols = 52;
-        let gridRows = 52;
-        
-        const ALL_GROUPS_MODE = 'ALL_GROUPS';
-        const DB_NAME = 'LED_DrawingsDB';
-        const DB_VERSION = 1;
-        const STORE_NAME = 'drawings';
-        let db = null;
-        
-        // 辅助函数
-        function coordKey(x, y) { return `${x},${y}`; }
-        
-        // 解析XML，提取所有图纸数据
-        function parseDrawingsFromXml(xmlText, fileName) {
-            const regex = /<string name="flutter\.52_52_1_color_source_key_v1">(.*?)<\/string>/s;
-            const match = xmlText.match(regex);
-            if (!match || !match[1]) {
-                console.warn("未找到图纸JSON字段");
-                return [];
+        try {
+            // 使用GitHub API获取仓库根目录的文件列表
+            const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/`;
+            const response = await fetch(apiUrl);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
-            let jsonStr = match[1];
-            jsonStr = jsonStr.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-            try {
-                const sourcesObj = JSON.parse(jsonStr);
-                const drawingsArray = [];
-                for (const [id, sourceData] of Object.entries(sourcesObj)) {
-                    if (!sourceData.pixData || typeof sourceData.pixData !== 'object') continue;
-                    const groupsMap = new Map();
-                    const pixData = sourceData.pixData;
-                    let width = 52, height = 52;
-                    if (sourceData.screenSize && Array.isArray(sourceData.screenSize)) {
-                        width = sourceData.screenSize[0] || 52;
-                        height = sourceData.screenSize[1] || 52;
-                    }
-                    for (const [groupName, coordsArray] of Object.entries(pixData)) {
-                        if (!Array.isArray(coordsArray)) continue;
-                        const coordSet = new Set();
-                        for (const coord of coordsArray) {
-                            if (Array.isArray(coord) && coord.length >= 2) {
-                                let x = Number(coord[0]);
-                                let y = Number(coord[1]);
-                                if (!isNaN(x) && !isNaN(y) && x >= 0 && y >= 0 && x < width && y < height) {
-                                    coordSet.add(coordKey(x, y));
-                                }
+            
+            const files = await response.json();
+            // 筛选XML文件
+            const xmlFiles = files.filter(file => 
+                file.name.endsWith('.xml') && file.type === 'file'
+            );
+            
+            currentXmlFiles = xmlFiles;
+            
+            if (xmlFiles.length === 0) {
+                xmlListDiv.innerHTML = '<div class="empty-state">📂 未找到XML文件<br>请上传XML文件到仓库根目录</div>';
+                return;
+            }
+            
+            xmlListDiv.innerHTML = '';
+            xmlFiles.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'xml-item';
+                div.innerHTML = `
+                    <span class="xml-name">📄 ${file.name}</span>
+                    <span class="loading-badge">${(file.size / 1024).toFixed(1)} KB</span>
+                `;
+                div.addEventListener('click', () => loadXmlFromUrl(file.download_url, file.name, div));
+                xmlListDiv.appendChild(div);
+            });
+            
+        } catch (error) {
+            console.error('获取文件列表失败:', error);
+            xmlListDiv.innerHTML = `<div class="empty-state">❌ 加载失败<br>请确认仓库信息正确<br>错误: ${error.message}</div>`;
+        }
+    }
+    
+    // 从URL加载XML文件
+    async function loadXmlFromUrl(url, fileName, element) {
+        // 移除其他高亮
+        document.querySelectorAll('.xml-item').forEach(el => el.classList.remove('active'));
+        if (element) element.classList.add('active');
+        
+        const groupsList = document.getElementById('groupsList');
+        groupsList.innerHTML = '<div class="empty-state">⏳ 解析XML中...</div>';
+        
+        try {
+            const response = await fetch(url);
+            const xmlText = await response.text();
+            
+            // 解析XML
+            const drawings = parseDrawingsFromXml(xmlText, fileName);
+            
+            if (drawings.length === 0) {
+                groupsList.innerHTML = '<div class="empty-state">❌ 未找到图纸数据</div>';
+                return;
+            }
+            
+            // 使用第一个图纸（通常每个XML包含多个图纸，这里展示第一个）
+            currentDrawing = drawings[0];
+            currentPixelGrid = buildPixelGroupsMap(currentDrawing);
+            currentActiveGroup = null;
+            
+            // 更新分组列表
+            updateGroupsSidebar();
+            
+            // 渲染画布
+            renderCanvas();
+            
+            document.getElementById('statsInfo').innerHTML = `✅ ${currentDrawing.name} | 分组: ${currentDrawing.groups.size} | ${currentDrawing.width}x${currentDrawing.height}`;
+            
+        } catch (error) {
+            console.error('加载XML失败:', error);
+            groupsList.innerHTML = `<div class="empty-state">❌ 加载失败: ${error.message}</div>`;
+        }
+    }
+    
+    // 解析XML
+    function parseDrawingsFromXml(xmlText, fileName) {
+        const regex = /<string name="flutter\.52_52_1_color_source_key_v1">(.*?)<\/string>/s;
+        const match = xmlText.match(regex);
+        if (!match || !match[1]) {
+            console.warn("未找到图纸JSON字段");
+            return [];
+        }
+        
+        let jsonStr = match[1];
+        jsonStr = jsonStr.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        
+        try {
+            const sourcesObj = JSON.parse(jsonStr);
+            const drawingsArray = [];
+            
+            for (const [id, sourceData] of Object.entries(sourcesObj)) {
+                if (!sourceData.pixData || typeof sourceData.pixData !== 'object') continue;
+                
+                const groupsMap = new Map();
+                const pixData = sourceData.pixData;
+                let width = 52, height = 52;
+                
+                if (sourceData.screenSize && Array.isArray(sourceData.screenSize)) {
+                    width = sourceData.screenSize[0] || 52;
+                    height = sourceData.screenSize[1] || 52;
+                }
+                
+                for (const [groupName, coordsArray] of Object.entries(pixData)) {
+                    if (!Array.isArray(coordsArray)) continue;
+                    const coordSet = new Set();
+                    for (const coord of coordsArray) {
+                        if (Array.isArray(coord) && coord.length >= 2) {
+                            let x = Number(coord[0]);
+                            let y = Number(coord[1]);
+                            if (!isNaN(x) && !isNaN(y) && x >= 0 && y >= 0 && x < width && y < height) {
+                                coordSet.add(coordKey(x, y));
                             }
                         }
-                        if (coordSet.size > 0) {
-                            groupsMap.set(groupName, coordSet);
-                        }
                     }
-                    let drawingName = sourceData.name && sourceData.name.trim() !== "" ? sourceData.name : `图纸_${id.slice(-8)}`;
-                    drawingsArray.push({
-                        id: id,
-                        name: drawingName,
-                        sourceFile: fileName,
-                        groups: groupsMap,
-                        width: width,
-                        height: height,
-                        resolution: `${width}x${height}`,
-                        uploadTime: Date.now()
-                    });
-                }
-                return drawingsArray;
-            } catch(e) {
-                console.error("JSON解析失败", e);
-                return [];
-            }
-        }
-        
-        // 初始化IndexedDB
-        function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db = request.result;
-                    resolve(db);
-                };
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                    }
-                };
-            });
-        }
-        
-        // 保存图纸到数据库
-        async function saveDrawingToDB(drawing) {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.add(drawing);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-        
-        // 加载所有图纸
-        async function loadAllDrawings() {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readonly');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.getAll();
-                request.onsuccess = () => {
-                    allDrawings = request.result || [];
-                    resolve(allDrawings);
-                };
-                request.onerror = () => reject(request.error);
-            });
-        }
-        
-        // 删除图纸
-        async function deleteDrawing(id) {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.delete(id);
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-        
-        // 构建像素归属网格
-        function buildPixelGroupsMap(drawing) {
-            if (!drawing) return null;
-            const w = drawing.width, h = drawing.height;
-            const pixelGroups = Array(h).fill().map(() => Array(w).fill().map(() => new Set()));
-            for (const [groupName, coordSet] of drawing.groups.entries()) {
-                for (const coordKeyStr of coordSet) {
-                    const [x, y] = coordKeyStr.split(',').map(Number);
-                    if (x >= 0 && x < w && y >= 0 && y < h) {
-                        pixelGroups[y][x].add(groupName);
+                    if (coordSet.size > 0) {
+                        groupsMap.set(groupName, coordSet);
                     }
                 }
-            }
-            return pixelGroups;
-        }
-        
-        // 绘制网格线（支持5格一组和10格一组）
-        function drawGridLines(canvasWidth, canvasHeight, pixelSize, cols, rows) {
-            if (!ctx) return;
-            ctx.save();
-            
-            // 绘制所有竖线
-            for (let i = 0; i <= cols; i++) {
-                const x = i * pixelSize;
-                const isThickLine10 = (i % 10 === 0);
-                const isThickLine5 = (i % 5 === 0 && i % 10 !== 0);
                 
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvasHeight);
-                
-                if (isThickLine10) {
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeStyle = '#a0a0a0';
-                } else if (isThickLine5) {
-                    ctx.lineWidth = 1.2;
-                    ctx.strokeStyle = '#606060';
-                } else {
-                    ctx.lineWidth = 0.8;
-                    ctx.strokeStyle = '#404040';
-                }
-                ctx.stroke();
+                let drawingName = sourceData.name && sourceData.name.trim() !== "" ? sourceData.name : `图纸_${id.slice(-8)}`;
+                drawingsArray.push({
+                    id: id,
+                    name: drawingName,
+                    sourceFile: fileName,
+                    groups: groupsMap,
+                    width: width,
+                    height: height,
+                    resolution: `${width}x${height}`
+                });
             }
             
-            // 绘制所有横线
-            for (let i = 0; i <= rows; i++) {
-                const y = i * pixelSize;
-                const isThickLine10 = (i % 10 === 0);
-                const isThickLine5 = (i % 5 === 0 && i % 10 !== 0);
-                
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvasWidth, y);
-                
-                if (isThickLine10) {
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeStyle = '#a0a0a0';
-                } else if (isThickLine5) {
-                    ctx.lineWidth = 1.2;
-                    ctx.strokeStyle = '#606060';
-                } else {
-                    ctx.lineWidth = 0.8;
-                    ctx.strokeStyle = '#404040';
-                }
-                ctx.stroke();
-            }
-            
-            ctx.restore();
+            return drawingsArray;
+        } catch(e) {
+            console.error("JSON解析失败", e);
+            return [];
         }
-        
-        // 核心渲染函数
-        function renderCanvas() {
-            if (!currentPixelGrid || !ctx) return;
-            const drawing = allDrawings[currentDrawingIndex];
-            if (!drawing) return;
-            
-            const cols = drawing.width;
-            const rows = drawing.height;
-            const pixelSize = currentPixelSize;
-            
-            const canvasWidth = cols * pixelSize;
-            const canvasHeight = rows * pixelSize;
-            
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-            
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-            
-            // 绘制每个格子
-            for (let row = 0; row < rows; row++) {
-                for (let col = 0; col < cols; col++) {
-                    const groupsAtPixel = currentPixelGrid[row][col];
-                    let shouldLight = false;
-                    
-                    if (currentActiveGroup === ALL_GROUPS_MODE) {
-                        shouldLight = groupsAtPixel.size > 0;
-                    } else if (currentActiveGroup !== null && currentActiveGroup !== 'NONE') {
-                        shouldLight = groupsAtPixel.has(currentActiveGroup);
-                    }
-                    
-                    if (shouldLight) {
-                        const x = col * pixelSize;
-                        const y = row * pixelSize;
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.fillRect(x, y, pixelSize, pixelSize);
-                    }
+    }
+    
+    // 构建像素网格
+    function buildPixelGroupsMap(drawing) {
+        if (!drawing) return null;
+        const w = drawing.width, h = drawing.height;
+        const pixelGroups = Array(h).fill().map(() => Array(w).fill().map(() => new Set()));
+        for (const [groupName, coordSet] of drawing.groups.entries()) {
+            for (const coordKeyStr of coordSet) {
+                const [x, y] = coordKeyStr.split(',').map(Number);
+                if (x >= 0 && x < w && y >= 0 && y < h) {
+                    pixelGroups[y][x].add(groupName);
                 }
             }
+        }
+        return pixelGroups;
+    }
+    
+    // 绘制网格线
+    function drawGridLines(canvasWidth, canvasHeight, pixelSize, cols, rows) {
+        if (!ctx) return;
+        ctx.save();
+        
+        for (let i = 0; i <= cols; i++) {
+            const x = i * pixelSize;
+            const isThickLine10 = (i % 10 === 0);
+            const isThickLine5 = (i % 5 === 0 && i % 10 !== 0);
             
-            drawGridLines(canvasWidth, canvasHeight, pixelSize, cols, rows);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvasHeight);
             
-            // 更新统计信息
-            const totalPixels = cols * rows;
-            let litCount = 0;
-            
-            if (currentActiveGroup === ALL_GROUPS_MODE) {
-                for (let row = 0; row < rows; row++) {
-                    for (let col = 0; col < cols; col++) {
-                        if (currentPixelGrid[row][col].size > 0) litCount++;
-                    }
-                }
-                document.getElementById('statsInfo').innerHTML = `✨ 所有分组点亮 | 发光格子: ${litCount} / ${totalPixels} | 格子: ${pixelSize}px`;
-            } else if (currentActiveGroup !== null && currentActiveGroup !== 'NONE') {
-                const groupSet = drawing.groups.get(currentActiveGroup);
-                if (groupSet) litCount = groupSet.size;
-                document.getElementById('statsInfo').innerHTML = `💡 分组: ${currentActiveGroup} | 格子数: ${litCount} / ${totalPixels} | 格子: ${pixelSize}px`;
+            if (isThickLine10) {
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#a0a0a0';
+            } else if (isThickLine5) {
+                ctx.lineWidth = 1.2;
+                ctx.strokeStyle = '#606060';
             } else {
-                document.getElementById('statsInfo').innerHTML = `⚫ 全部熄灭 | 总格子: ${totalPixels} | 格子: ${pixelSize}px`;
+                ctx.lineWidth = 0.8;
+                ctx.strokeStyle = '#404040';
             }
+            ctx.stroke();
         }
         
-        // 刷新分组侧边栏
-        function updateGroupsSidebar() {
-            const groupsContainer = document.getElementById('groupsList');
-            if (currentDrawingIndex === -1 || !allDrawings[currentDrawingIndex]) {
-                groupsContainer.innerHTML = '<div class="empty-state">请先选择图纸</div>';
-                return;
+        for (let i = 0; i <= rows; i++) {
+            const y = i * pixelSize;
+            const isThickLine10 = (i % 10 === 0);
+            const isThickLine5 = (i % 5 === 0 && i % 10 !== 0);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvasWidth, y);
+            
+            if (isThickLine10) {
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#a0a0a0';
+            } else if (isThickLine5) {
+                ctx.lineWidth = 1.2;
+                ctx.strokeStyle = '#606060';
+            } else {
+                ctx.lineWidth = 0.8;
+                ctx.strokeStyle = '#404040';
             }
-            const drawing = allDrawings[currentDrawingIndex];
-            const groupsMap = drawing.groups;
-            if (!groupsMap || groupsMap.size === 0) {
-                groupsContainer.innerHTML = '<div class="empty-state">该图纸无分组数据</div>';
-                return;
-            }
-            const sortedGroups = Array.from(groupsMap.keys()).sort();
-            groupsContainer.innerHTML = '';
-            for (const groupName of sortedGroups) {
-                const pixelCount = groupsMap.get(groupName).size;
-                const div = document.createElement('div');
-                div.className = 'group-tag';
-                if (currentActiveGroup === groupName) {
-                    div.classList.add('active-group');
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    }
+    
+    // 渲染画布
+    function renderCanvas() {
+        if (!currentPixelGrid || !ctx || !currentDrawing) return;
+        
+        const cols = currentDrawing.width;
+        const rows = currentDrawing.height;
+        const pixelSize = currentPixelSize;
+        
+        const canvasWidth = cols * pixelSize;
+        const canvasHeight = rows * pixelSize;
+        
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                const groupsAtPixel = currentPixelGrid[row][col];
+                let shouldLight = false;
+                
+                if (currentActiveGroup === ALL_GROUPS_MODE) {
+                    shouldLight = groupsAtPixel.size > 0;
+                } else if (currentActiveGroup !== null && currentActiveGroup !== 'NONE') {
+                    shouldLight = groupsAtPixel.has(currentActiveGroup);
                 }
-                div.innerHTML = `<span class="group-name">${groupName}</span><span class="group-count">${pixelCount} 格</span>`;
-                div.addEventListener('click', () => {
-                    if (currentActiveGroup === groupName) return;
-                    currentActiveGroup = groupName;
-                    document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
-                    div.classList.add('active-group');
-                    renderCanvas();
-                });
-                groupsContainer.appendChild(div);
+                
+                if (shouldLight) {
+                    const x = col * pixelSize;
+                    const y = row * pixelSize;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(x, y, pixelSize, pixelSize);
+                }
             }
         }
         
-        // 更新图纸列表UI
-        function updateDrawingsListUI() {
-            const container = document.getElementById('drawingsList');
-            if (allDrawings.length === 0) {
-                container.innerHTML = '<div class="empty-state">暂无图纸，点击上方按钮添加XML文件</div>';
-                return;
-            }
-            container.innerHTML = '';
-            allDrawings.forEach((draw, idx) => {
-                const div = document.createElement('div');
-                div.className = 'drawing-item';
-                if (idx === currentDrawingIndex) div.classList.add('active');
-                div.innerHTML = `
-                    <span class="drawing-name">${draw.name} (${draw.resolution})</span>
-                    <button class="delete-drawing" data-id="${draw.id}">🗑️</button>
-                `;
-                div.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('delete-drawing')) return;
-                    switchToDrawing(idx);
-                });
-                const deleteBtn = div.querySelector('.delete-drawing');
-                deleteBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    if (confirm(`确定删除图纸 "${draw.name}" 吗？`)) {
-                        await deleteDrawing(draw.id);
-                        await refreshDrawingsList();
-                        if (allDrawings.length === 0) {
-                            currentDrawingIndex = -1;
-                            currentPixelGrid = null;
-                            currentActiveGroup = null;
-                            renderCanvas();
-                            updateGroupsSidebar();
-                        } else if (currentDrawingIndex === idx) {
-                            switchToDrawing(0);
-                        } else if (currentDrawingIndex > idx) {
-                            currentDrawingIndex--;
-                            switchToDrawing(currentDrawingIndex);
-                        }
-                    }
-                });
-                container.appendChild(div);
+        drawGridLines(canvasWidth, canvasHeight, pixelSize, cols, rows);
+    }
+    
+    // 更新分组列表
+    function updateGroupsSidebar() {
+        const groupsContainer = document.getElementById('groupsList');
+        if (!currentDrawing || !currentDrawing.groups || currentDrawing.groups.size === 0) {
+            groupsContainer.innerHTML = '<div class="empty-state">该图纸无分组数据</div>';
+            return;
+        }
+        
+        const sortedGroups = Array.from(currentDrawing.groups.keys()).sort();
+        groupsContainer.innerHTML = '';
+        
+        for (const groupName of sortedGroups) {
+            const pixelCount = currentDrawing.groups.get(groupName).size;
+            const div = document.createElement('div');
+            div.className = 'group-tag';
+            if (currentActiveGroup === groupName) div.classList.add('active-group');
+            div.innerHTML = `<span class="group-name">${groupName}</span><span class="group-count">${pixelCount} 格</span>`;
+            div.addEventListener('click', () => {
+                currentActiveGroup = groupName;
+                document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
+                div.classList.add('active-group');
+                renderCanvas();
             });
+            groupsContainer.appendChild(div);
         }
-        
-        // 切换到指定图纸
-        function switchToDrawing(index) {
-            if (index < 0 || index >= allDrawings.length) return;
-            currentDrawingIndex = index;
-            const drawing = allDrawings[currentDrawingIndex];
-            currentPixelGrid = buildPixelGroupsMap(drawing);
-            currentActiveGroup = null;
-            updateDrawingsListUI();
-            updateGroupsSidebar();
-            renderCanvas();
-        }
-        
-        // 刷新图纸列表
-        async function refreshDrawingsList() {
-            await loadAllDrawings();
-            updateDrawingsListUI();
-            if (currentDrawingIndex >= allDrawings.length) {
-                currentDrawingIndex = allDrawings.length - 1;
-            }
-            if (currentDrawingIndex >= 0 && allDrawings[currentDrawingIndex]) {
-                currentPixelGrid = buildPixelGroupsMap(allDrawings[currentDrawingIndex]);
+    }
+    
+    // 点亮所有分组
+    function lightAllGroups() {
+        if (!currentDrawing) return;
+        currentActiveGroup = ALL_GROUPS_MODE;
+        document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
+        renderCanvas();
+    }
+    
+    // 全部熄灭
+    function resetAllGroups() {
+        if (!currentDrawing) return;
+        currentActiveGroup = null;
+        document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
+        renderCanvas();
+    }
+    
+    // 本地上传XML
+    function addLocalXml() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xml';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const drawings = parseDrawingsFromXml(ev.target.result, file.name);
+                if (drawings.length === 0) {
+                    alert("未解析到图纸数据");
+                    return;
+                }
+                currentDrawing = drawings[0];
+                currentPixelGrid = buildPixelGroupsMap(currentDrawing);
+                currentActiveGroup = null;
                 updateGroupsSidebar();
                 renderCanvas();
+                document.getElementById('statsInfo').innerHTML = `📁 本地: ${currentDrawing.name} | 分组: ${currentDrawing.groups.size}`;
+            };
+            reader.readAsText(file, 'utf-8');
+        };
+        input.click();
+    }
+    
+    // 初始化像素大小控制
+    function initPixelSizeControl() {
+        const updatePixelSize = () => {
+            currentPixelSize = parseInt(pixelSizeSlider.value);
+            pixelSizeValueSpan.innerText = `${currentPixelSize} x ${currentPixelSize} px`;
+            renderCanvas();
+        };
+        
+        pixelSizeSlider.addEventListener('input', updatePixelSize);
+        document.getElementById('decreaseSizeBtn').addEventListener('click', () => {
+            let newVal = currentPixelSize - 1;
+            if (newVal >= 4) {
+                pixelSizeSlider.value = newVal;
+                updatePixelSize();
             }
-        }
+        });
+        document.getElementById('increaseSizeBtn').addEventListener('click', () => {
+            let newVal = currentPixelSize + 1;
+            if (newVal <= 32) {
+                pixelSizeSlider.value = newVal;
+                updatePixelSize();
+            }
+        });
+        updatePixelSize();
+    }
+    
+    // 初始化
+    async function init() {
+        initPixelSizeControl();
         
-        // 添加XML文件
-        async function addXmlFile() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.xml';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    const content = ev.target.result;
-                    const drawings = parseDrawingsFromXml(content, file.name);
-                    if (drawings.length === 0) {
-                        alert("未解析到任何图纸数据，请确保XML包含正确的图纸字段");
-                        return;
-                    }
-                    
-                    for (const drawing of drawings) {
-                        await saveDrawingToDB(drawing);
-                    }
-                    await refreshDrawingsList();
-                    if (allDrawings.length > 0 && currentDrawingIndex === -1) {
-                        switchToDrawing(0);
-                    }
-                    alert(`成功添加 ${drawings.length} 个图纸！`);
-                };
-                reader.readAsText(file, 'utf-8');
-            };
-            input.click();
-        }
+        // 绑定按钮事件
+        document.getElementById('refreshRepoBtn').addEventListener('click', fetchXmlFileList);
+        document.getElementById('addLocalXmlBtn').addEventListener('click', addLocalXml);
+        document.getElementById('lightAllGroupsBtn').addEventListener('click', lightAllGroups);
+        document.getElementById('resetGroupsBtn').addEventListener('click', resetAllGroups);
         
-        // 点亮所有分组
-        function lightAllGroups() {
-            if (currentDrawingIndex === -1) return;
-            currentActiveGroup = ALL_GROUPS_MODE;
-            document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
-            renderCanvas();
-        }
-        
-        // 全部熄灭
-        function resetAllGroups() {
-            if (currentDrawingIndex === -1) return;
-            currentActiveGroup = null;
-            document.querySelectorAll('.group-tag').forEach(el => el.classList.remove('active-group'));
-            renderCanvas();
-        }
-        
-        // 初始化像素大小控制
-        function initPixelSizeControl() {
-            const updatePixelSize = () => {
-                currentPixelSize = parseInt(pixelSizeSlider.value);
-                pixelSizeValueSpan.innerText = `${currentPixelSize} x ${currentPixelSize} px`;
-                if (currentDrawingIndex !== -1) renderCanvas();
-            };
-            pixelSizeSlider.addEventListener('input', updatePixelSize);
-            
-            decreaseBtn.addEventListener('click', () => {
-                let newVal = currentPixelSize - 1;
-                if (newVal >= 4) {
-                    pixelSizeSlider.value = newVal;
-                    updatePixelSize();
-                }
-            });
-            
-            increaseBtn.addEventListener('click', () => {
-                let newVal = currentPixelSize + 1;
-                if (newVal <= 32) {
-                    pixelSizeSlider.value = newVal;
-                    updatePixelSize();
-                }
-            });
-            
-            updatePixelSize();
-        }
-        
-        // 初始化应用
-        async function initApp() {
-            await initDB();
-            await refreshDrawingsList();
-            initPixelSizeControl();
-            
-            document.getElementById('addXmlBtn').addEventListener('click', addXmlFile);
-            document.getElementById('lightAllGroupsBtn').addEventListener('click', lightAllGroups);
-            document.getElementById('resetGroupsBtn').addEventListener('click', resetAllGroups);
-        }
-        
-        initApp();
-    })();
+        // 自动加载仓库文件
+        await fetchXmlFileList();
+    }
+    
+    init();
 </script>
 </body>
 </html>
