@@ -477,22 +477,50 @@
     
     function coordKey(x, y) { return `${x},${y}`; }
 
-    // 解码调色板索引
-    function decodePaletteIndices(paletteB64) {
+    /**
+     * 正确的调色板索引解码方法 (根据用户提供的规则)
+     * 规则：第2个字节（索引1）-150 作为第一个色号索引
+     *       后续每个字节值作为差值，累加
+     *       列表中每个值对应颜色顺序，1代表第一个色号
+     * @param {string} paletteB64 - Base64编码的调色板数据
+     * @returns {number[]} 解码后的颜色索引数组（1-based，指向customLegend中的位置）
+     */
+    function decodePaletteIndicesCorrect(paletteB64) {
         try {
-            const binary = atob(paletteB64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            
-            let indices = [bytes[2]];
-            for (let i = 3; i < bytes.length; i++) {
-                indices.push(indices[indices.length-1] + bytes[i]);
+            // 解码base64
+            const binaryString = atob(paletteB64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
             }
-            indices = indices.map(x => x - 13);
-            return indices;
+            
+            // 将Uint8Array转换为普通数组方便操作
+            const bytesList = Array.from(bytes);
+            
+            if (bytesList.length < 2) {
+                throw new Error('调色板数据过短');
+            }
+            
+            // 第2个字节（索引1）减150作为第一个色号索引
+            let firstColorIndex = bytesList[1] - 150;
+            // 索引值至少为1 (颜色从1开始，0是透明)
+            if (firstColorIndex < 1) firstColorIndex = 1;
+            
+            const indices = [firstColorIndex];
+            
+            // 从第3个字节（索引2）开始，后续每个字节值作为差值累加
+            for (let i = 2; i < bytesList.length; i++) {
+                // 注意：从索引2开始（即第三个字节）
+                const delta = bytesList[i];
+                const nextIndex = indices[indices.length - 1] + delta;
+                indices.push(nextIndex);
+            }
+            
+            // 确保所有索引为正数
+            return indices.map(idx => Math.max(1, idx));
         } catch (e) {
             console.error('解码调色板失败:', e);
-            throw new Error('调色板解码失败');
+            throw new Error('调色板解码失败: ' + e.message);
         }
     }
 
@@ -551,7 +579,7 @@
                     offset += chunk.length;
                 }
             } catch (e) {
-                console.error('解压失败:', e);
+                console.warn('gzip解压失败，尝试直接解析原始数据:', e);
                 // 如果数据不是gzip格式，直接使用原始数据
                 decompressed = new Uint8Array(buffer);
             }
@@ -567,21 +595,30 @@
             }
             
             const fullLegend = data.calibrationProgress.customLegend;
-            const paletteIndices = decodePaletteIndices(data.palette);
+            // 使用正确的调色板解码方法
+            const paletteIndices = decodePaletteIndicesCorrect(data.palette);
+            console.log('解码后的调色板索引 (前20个):', paletteIndices.slice(0, 20));
             
-            // 构建颜色表
-            const colorTable = [];
-            colorTable.push({ r:0, g:0, b:0, a:0, id:'TRANSPARENT' });
+            // 构建颜色表 (索引0为透明)
+            const colorTable = [{ r:0, g:0, b:0, a:0, id:'TRANSPARENT' }];
             
             for (let i = 0; i < paletteIndices.length; i++) {
-                const legendIdx = paletteIndices[i] - 1;
+                const legendIdx = paletteIndices[i] - 1; // 转为0-based索引
                 if (legendIdx >= 0 && legendIdx < fullLegend.length) {
                     const c = fullLegend[legendIdx];
-                    colorTable.push({ 
-                        r: c.rgb.r, g: c.rgb.g, b: c.rgb.b, a: 255, 
-                        id: c.id 
-                    });
+                    if (c && c.rgb) {
+                        colorTable.push({ 
+                            r: c.rgb.r, 
+                            g: c.rgb.g, 
+                            b: c.rgb.b, 
+                            a: 255, 
+                            id: c.id || `color_${i}`
+                        });
+                    } else {
+                        colorTable.push({ r:0, g:0, b:0, a:255, id:'INVALID' });
+                    }
                 } else {
+                    console.warn(`调色板索引 ${paletteIndices[i]} 超出customLegend范围 (${fullLegend.length})`);
                     colorTable.push({ r:0, g:0, b:0, a:255, id:'INVALID' });
                 }
             }
@@ -852,7 +889,6 @@
             
             try {
                 const buffer = await file.arrayBuffer();
-                // 尝试作为gzip解压
                 let decompressed;
                 try {
                     const ds = new DecompressionStream('gzip');
@@ -882,9 +918,9 @@
                 const jsonText = new TextDecoder().decode(decompressed);
                 const data = JSON.parse(jsonText);
                 
-                // 验证并解析(复用parseOhmybeadDrawing的逻辑)
+                // 使用正确的调色板解码方法
                 const fullLegend = data.calibrationProgress.customLegend;
-                const paletteIndices = decodePaletteIndices(data.palette);
+                const paletteIndices = decodePaletteIndicesCorrect(data.palette);
                 
                 const colorTable = [{ r:0,g:0,b:0,a:0, id:'TRANSPARENT' }];
                 for (let i = 0; i < paletteIndices.length; i++) {
