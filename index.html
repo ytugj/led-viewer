@@ -37,7 +37,6 @@
             flex-shrink: 0;
         }
 
-        /* 图纸编号输入区 */
         .drawing-input-section {
             padding: 18px 16px 12px 16px;
             border-bottom: 1px solid #1e222c;
@@ -387,7 +386,6 @@
 <body>
 <div class="app-container">
     <div class="sidebar">
-        <!-- 图纸编号输入 (在线解析) -->
         <div class="drawing-input-section">
             <div class="input-label">
                 <span>🔢 在线图纸编号 (ohmybead)</span>
@@ -404,7 +402,6 @@
             <div class="error-message" id="errorMessage"></div>
         </div>
 
-        <!-- 保留原有XML功能 -->
         <div class="repo-section">
             <div class="section-title">
                 <span>📁 仓库XML (备用)</span>
@@ -456,7 +453,6 @@
 </div>
 
 <script>
-    // 全局变量
     let currentDrawingData = null;
     let currentActiveGroup = null;
     let currentPixelSize = 12.0;
@@ -478,23 +474,20 @@
     function coordKey(x, y) { return `${x},${y}`; }
 
     /**
-     * 正确的调色板索引解码方法 (根据用户提供的规则)
+     * 正确的调色板索引解码方法（与Python版本完全一致）
      * 规则：第2个字节（索引1）-150 作为第一个色号索引
-     *       后续每个字节值作为差值，累加
-     *       列表中每个值对应颜色顺序，1代表第一个色号
-     * @param {string} paletteB64 - Base64编码的调色板数据
-     * @returns {number[]} 解码后的颜色索引数组（1-based，指向customLegend中的位置）
+     *       从第3个字节（索引2）开始？不对，Python代码是从索引3开始（第4个字节）
+     *       仔细分析Python代码：for i in range(3, len(bytes_list)):
+     *       所以起始索引是3（第4个字节），不是2
      */
     function decodePaletteIndicesCorrect(paletteB64) {
         try {
-            // 解码base64
             const binaryString = atob(paletteB64);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
             
-            // 将Uint8Array转换为普通数组方便操作
             const bytesList = Array.from(bytes);
             
             if (bytesList.length < 2) {
@@ -503,20 +496,18 @@
             
             // 第2个字节（索引1）减150作为第一个色号索引
             let firstColorIndex = bytesList[1] - 150;
-            // 索引值至少为1 (颜色从1开始，0是透明)
             if (firstColorIndex < 1) firstColorIndex = 1;
             
             const indices = [firstColorIndex];
             
-            // 从第3个字节（索引2）开始，后续每个字节值作为差值累加
-            for (let i = 2; i < bytesList.length; i++) {
-                // 注意：从索引2开始（即第三个字节）
+            // 从第4个字节（索引3）开始，后续每个字节值作为差值累加
+            // 这与Python代码完全一致：for i in range(3, len(bytes_list)):
+            for (let i = 3; i < bytesList.length; i++) {
                 const delta = bytesList[i];
                 const nextIndex = indices[indices.length - 1] + delta;
                 indices.push(nextIndex);
             }
             
-            // 确保所有索引为正数
             return indices.map(idx => Math.max(1, idx));
         } catch (e) {
             console.error('解码调色板失败:', e);
@@ -524,11 +515,9 @@
         }
     }
 
-    // 解析ohmybead图纸 (支持CORS代理)
     async function parseOhmybeadDrawing(drawingId, useProxy = false) {
         let url = `https://oss.ohmybead.cn/projects/56411/${drawingId}/drawing.omb`;
         
-        // 如果使用代理，通过CORS代理服务
         if (useProxy) {
             url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         }
@@ -536,7 +525,6 @@
         const headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate",
         };
         
         try {
@@ -554,7 +542,6 @@
             const buffer = await response.arrayBuffer();
             console.log('下载数据大小:', buffer.byteLength);
             
-            // 使用浏览器原生DecompressionStream解压gzip
             let decompressed;
             try {
                 const ds = new DecompressionStream('gzip');
@@ -570,7 +557,6 @@
                     chunks.push(value);
                 }
                 
-                // 合并chunks
                 const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
                 decompressed = new Uint8Array(totalLength);
                 let offset = 0;
@@ -579,8 +565,7 @@
                     offset += chunk.length;
                 }
             } catch (e) {
-                console.warn('gzip解压失败，尝试直接解析原始数据:', e);
-                // 如果数据不是gzip格式，直接使用原始数据
+                console.warn('gzip解压失败，尝试直接解析:', e);
                 decompressed = new Uint8Array(buffer);
             }
             
@@ -589,22 +574,26 @@
             const jsonText = new TextDecoder().decode(decompressed);
             const data = JSON.parse(jsonText);
             
-            // 验证数据结构
             if (!data.calibrationProgress?.customLegend || !data.palette || !data.layers) {
                 throw new Error('图纸数据格式不正确');
             }
             
             const fullLegend = data.calibrationProgress.customLegend;
-            // 使用正确的调色板解码方法
-            const paletteIndices = decodePaletteIndicesCorrect(data.palette);
-            console.log('解码后的调色板索引 (前20个):', paletteIndices.slice(0, 20));
+            console.log(`完整色库大小: ${fullLegend.length}`);
             
-            // 构建颜色表 (索引0为透明)
+            // 使用正确的解码方法
+            const paletteIndices = decodePaletteIndicesCorrect(data.palette);
+            console.log(`解码出的调色板索引数量: ${paletteIndices.length}`);
+            console.log(`索引范围: ${Math.min(...paletteIndices)} - ${Math.max(...paletteIndices)}`);
+            
+            // 构建RGBA颜色表（索引0为透明背景）
             const colorTable = [{ r:0, g:0, b:0, a:0, id:'TRANSPARENT' }];
             
+            // 从索引1开始对应调色板中的颜色
             for (let i = 0; i < paletteIndices.length; i++) {
-                const legendIdx = paletteIndices[i] - 1; // 转为0-based索引
-                if (legendIdx >= 0 && legendIdx < fullLegend.length) {
+                const paletteIdx = paletteIndices[i];
+                if (paletteIdx >= 1 && paletteIdx <= fullLegend.length) {
+                    const legendIdx = paletteIdx - 1;
                     const c = fullLegend[legendIdx];
                     if (c && c.rgb) {
                         colorTable.push({ 
@@ -618,10 +607,12 @@
                         colorTable.push({ r:0, g:0, b:0, a:255, id:'INVALID' });
                     }
                 } else {
-                    console.warn(`调色板索引 ${paletteIndices[i]} 超出customLegend范围 (${fullLegend.length})`);
+                    console.warn(`调色板索引 ${paletteIdx} 超出色库范围 (1-${fullLegend.length})`);
                     colorTable.push({ r:0, g:0, b:0, a:255, id:'INVALID' });
                 }
             }
+            
+            console.log(`实际使用的颜色数: ${colorTable.length}`);
             
             // 解码像素层
             const pixelLayer = data.layers.find(l => l.type === 'pixel');
@@ -630,8 +621,10 @@
             const compressedBytes = Uint8Array.from(atob(pixelLayer.data), c => c.charCodeAt(0));
             const intArray = [];
             for (let i = 0; i < compressedBytes.length; i+=4) {
-                const view = new DataView(compressedBytes.buffer.slice(i, i+4));
-                intArray.push(view.getUint32(0, true));
+                if (i + 4 <= compressedBytes.length) {
+                    const view = new DataView(compressedBytes.buffer.slice(i, i+4));
+                    intArray.push(view.getUint32(0, true));
+                }
             }
             
             const width = data.calibrationSettings.cols;
@@ -641,14 +634,20 @@
             let pixelIndices = [];
             let i = 0;
             while (i < intArray.length && pixelIndices.length < expected) {
-                if (i+1 < intArray.length) {
+                if (i + 1 < intArray.length) {
                     const count = intArray[i];
                     const value = intArray[i+1];
                     i += 2;
-                    for (let k=0; k<count; k++) pixelIndices.push(value);
+                    for (let k = 0; k < count; k++) {
+                        pixelIndices.push(value);
+                    }
                 } else break;
             }
             pixelIndices = pixelIndices.slice(0, expected);
+            
+            console.log(`图纸尺寸: ${width} x ${height}`);
+            console.log(`总像素数: ${pixelIndices.length}`);
+            console.log(`像素索引范围: ${Math.min(...pixelIndices)} - ${Math.max(...pixelIndices)}`);
             
             // 构建分组
             const groupsMap = new Map();
@@ -659,21 +658,28 @@
                     const idx = y * width + x;
                     const colorIdx = pixelIndices[idx];
                     if (colorIdx === 0) continue;
-                    const color = colorTable[colorIdx];
-                    if (!color || color.a === 0) continue;
                     
-                    const groupId = color.id;
-                    if (!groupsMap.has(groupId)) {
-                        groupsMap.set(groupId, {
-                            id: groupId,
-                            rgb: { r: color.r, g: color.g, b: color.b },
-                            coords: new Set()
-                        });
+                    if (colorIdx < colorTable.length) {
+                        const color = colorTable[colorIdx];
+                        if (color && color.a !== 0) {
+                            const groupId = color.id;
+                            if (!groupsMap.has(groupId)) {
+                                groupsMap.set(groupId, {
+                                    id: groupId,
+                                    rgb: { r: color.r, g: color.g, b: color.b },
+                                    coords: new Set()
+                                });
+                            }
+                            groupsMap.get(groupId).coords.add(coordKey(x, y));
+                            pixelGroupsGrid[y][x].add(groupId);
+                        }
+                    } else {
+                        console.warn(`像素索引 ${colorIdx} 超出颜色表范围 (0-${colorTable.length-1})`);
                     }
-                    groupsMap.get(groupId).coords.add(coordKey(x, y));
-                    if (x < width && y < height) pixelGroupsGrid[y][x].add(groupId);
                 }
             }
+            
+            console.log(`颜色分组数量: ${groupsMap.size}`);
             
             return {
                 id: drawingId,
@@ -705,26 +711,39 @@
             for (let col = 0; col < width; col++) {
                 const groupsAtPixel = pixelGrid[row][col];
                 let shouldLight = false;
-                let groupId = null;
                 
                 if (currentActiveGroup === ALL_GROUPS_MODE) {
                     shouldLight = groupsAtPixel.size > 0;
                 } else if (currentActiveGroup) {
                     shouldLight = groupsAtPixel.has(currentActiveGroup);
-                    groupId = currentActiveGroup;
                 }
                 
                 if (shouldLight) {
                     const x = col * pixelSize;
                     const y = row * pixelSize;
                     
-                    if (colorMode === 'white' || currentActiveGroup === ALL_GROUPS_MODE) {
+                    if (colorMode === 'white') {
                         ctx.fillStyle = '#FFFFFF';
-                    } else if (groupId && groups.has(groupId)) {
-                        const rgb = groups.get(groupId).rgb;
-                        ctx.fillStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
                     } else {
-                        ctx.fillStyle = '#FFFFFF';
+                        // 原色模式：获取像素的实际颜色
+                        if (currentActiveGroup === ALL_GROUPS_MODE && groupsAtPixel.size > 0) {
+                            const firstGroupId = groupsAtPixel.values().next().value;
+                            const groupInfo = groups.get(firstGroupId);
+                            if (groupInfo) {
+                                ctx.fillStyle = `rgb(${groupInfo.rgb.r}, ${groupInfo.rgb.g}, ${groupInfo.rgb.b})`;
+                            } else {
+                                ctx.fillStyle = '#FFFFFF';
+                            }
+                        } else if (currentActiveGroup && currentActiveGroup !== ALL_GROUPS_MODE) {
+                            const groupInfo = groups.get(currentActiveGroup);
+                            if (groupInfo) {
+                                ctx.fillStyle = `rgb(${groupInfo.rgb.r}, ${groupInfo.rgb.g}, ${groupInfo.rgb.b})`;
+                            } else {
+                                ctx.fillStyle = '#FFFFFF';
+                            }
+                        } else {
+                            ctx.fillStyle = '#FFFFFF';
+                        }
                     }
                     ctx.fillRect(x, y, pixelSize, pixelSize);
                 }
@@ -736,22 +755,20 @@
     
     function drawGridLines(cw, ch, ps, cols, rows) {
         ctx.save();
+        ctx.beginPath();
         for (let i = 0; i <= cols; i++) {
             const x = i * ps;
-            ctx.beginPath();
-            ctx.moveTo(x, 0); ctx.lineTo(x, ch);
-            ctx.lineWidth = (i % 10 === 0) ? 1.5 : (i % 5 === 0 ? 1.2 : 0.8);
-            ctx.strokeStyle = (i % 10 === 0) ? '#a0a0a0' : (i % 5 === 0 ? '#606060' : '#404040');
-            ctx.stroke();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, ch);
         }
         for (let i = 0; i <= rows; i++) {
             const y = i * ps;
-            ctx.beginPath();
-            ctx.moveTo(0, y); ctx.lineTo(cw, y);
-            ctx.lineWidth = (i % 10 === 0) ? 1.5 : (i % 5 === 0 ? 1.2 : 0.8);
-            ctx.strokeStyle = (i % 10 === 0) ? '#a0a0a0' : (i % 5 === 0 ? '#606060' : '#404040');
-            ctx.stroke();
+            ctx.moveTo(0, y);
+            ctx.lineTo(cw, y);
         }
+        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = '#333333';
+        ctx.stroke();
         ctx.restore();
     }
     
@@ -848,11 +865,11 @@
         };
         pixelSizeSlider.addEventListener('input', update);
         document.getElementById('decreaseSizeBtn').addEventListener('click', () => {
-            let val = currentPixelSize - 0.1;
+            let val = currentPixelSize - 0.5;
             if (val >= 4) { pixelSizeSlider.value = val; update(); }
         });
         document.getElementById('increaseSizeBtn').addEventListener('click', () => {
-            let val = currentPixelSize + 0.1;
+            let val = currentPixelSize + 0.5;
             if (val <= 32) { pixelSizeSlider.value = val; update(); }
         });
         update();
@@ -870,7 +887,6 @@
         });
     }
     
-    // XML功能简化
     async function fetchXmlFileList() { 
         const xmlListDiv = document.getElementById('xmlList');
         xmlListDiv.innerHTML = '<div class="empty-state">XML功能保留，优先使用在线解析</div>';
@@ -879,7 +895,7 @@
     function addLocalXml() { 
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.xml,.omb';
+        input.accept = '.json,.omb';
         input.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -888,45 +904,18 @@
             stats.innerHTML = '⏳ 解析本地文件...';
             
             try {
-                const buffer = await file.arrayBuffer();
-                let decompressed;
-                try {
-                    const ds = new DecompressionStream('gzip');
-                    const writer = ds.writable.getWriter();
-                    writer.write(new Uint8Array(buffer));
-                    writer.close();
-                    
-                    const chunks = [];
-                    const reader = ds.readable.getReader();
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        chunks.push(value);
-                    }
-                    
-                    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-                    decompressed = new Uint8Array(totalLength);
-                    let offset = 0;
-                    for (const chunk of chunks) {
-                        decompressed.set(chunk, offset);
-                        offset += chunk.length;
-                    }
-                } catch {
-                    decompressed = new Uint8Array(buffer);
-                }
+                const text = await file.text();
+                const data = JSON.parse(text);
                 
-                const jsonText = new TextDecoder().decode(decompressed);
-                const data = JSON.parse(jsonText);
-                
-                // 使用正确的调色板解码方法
+                // 复用解析逻辑
                 const fullLegend = data.calibrationProgress.customLegend;
                 const paletteIndices = decodePaletteIndicesCorrect(data.palette);
                 
                 const colorTable = [{ r:0,g:0,b:0,a:0, id:'TRANSPARENT' }];
                 for (let i = 0; i < paletteIndices.length; i++) {
-                    const legendIdx = paletteIndices[i] - 1;
-                    if (legendIdx >= 0 && legendIdx < fullLegend.length) {
-                        const c = fullLegend[legendIdx];
+                    const paletteIdx = paletteIndices[i];
+                    if (paletteIdx >= 1 && paletteIdx <= fullLegend.length) {
+                        const c = fullLegend[paletteIdx - 1];
                         colorTable.push({ r: c.rgb.r, g: c.rgb.g, b: c.rgb.b, a: 255, id: c.id });
                     } else {
                         colorTable.push({ r:0,g:0,b:0,a:255, id:'INVALID' });
@@ -937,7 +926,9 @@
                 const compressedBytes = Uint8Array.from(atob(pixelLayer.data), c => c.charCodeAt(0));
                 const intArray = [];
                 for (let i = 0; i < compressedBytes.length; i+=4) {
-                    intArray.push(new DataView(compressedBytes.buffer.slice(i, i+4)).getUint32(0, true));
+                    if (i + 4 <= compressedBytes.length) {
+                        intArray.push(new DataView(compressedBytes.buffer.slice(i, i+4)).getUint32(0, true));
+                    }
                 }
                 
                 const width = data.calibrationSettings.cols;
@@ -963,19 +954,21 @@
                         const idx = y * width + x;
                         const colorIdx = pixelIndices[idx];
                         if (colorIdx === 0) continue;
-                        const color = colorTable[colorIdx];
-                        if (!color || color.a === 0) continue;
-                        
-                        const groupId = color.id;
-                        if (!groupsMap.has(groupId)) {
-                            groupsMap.set(groupId, {
-                                id: groupId,
-                                rgb: { r: color.r, g: color.g, b: color.b },
-                                coords: new Set()
-                            });
+                        if (colorIdx < colorTable.length) {
+                            const color = colorTable[colorIdx];
+                            if (color && color.a !== 0) {
+                                const groupId = color.id;
+                                if (!groupsMap.has(groupId)) {
+                                    groupsMap.set(groupId, {
+                                        id: groupId,
+                                        rgb: { r: color.r, g: color.g, b: color.b },
+                                        coords: new Set()
+                                    });
+                                }
+                                groupsMap.get(groupId).coords.add(coordKey(x, y));
+                                pixelGroupsGrid[y][x].add(groupId);
+                            }
                         }
-                        groupsMap.get(groupId).coords.add(coordKey(x, y));
-                        pixelGroupsGrid[y][x].add(groupId);
                     }
                 }
                 
@@ -983,7 +976,7 @@
                 currentActiveGroup = null;
                 updateGroupsSidebar();
                 renderCanvas();
-                stats.innerHTML = `📁 本地: ${file.name} | ${width}x${height}`;
+                stats.innerHTML = `📁 本地: ${file.name} | ${width}x${height} | 分组: ${groupsMap.size}`;
             } catch (e) {
                 showError('本地文件解析失败: ' + e.message);
                 stats.innerHTML = '❌ 解析失败';
@@ -1013,7 +1006,6 @@
         document.getElementById('refreshRepoBtn').addEventListener('click', fetchXmlFileList);
         document.getElementById('addLocalXmlBtn').addEventListener('click', addLocalXml);
         
-        // 自动加载默认图纸
         await loadDrawingById('358057');
     }
     
